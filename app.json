@@ -17,7 +17,13 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCo5SgLZzLchCWMn2Z1cw6z_zyetTQwqas"
+        }
+      },
+      "package": "com.saadpatel07.SafeTourMobile"
     },
     "web": {
       "output": "static",
@@ -32,11 +38,28 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-image",
+      "expo-web-browser",
+      [
+  "expo-build-properties",
+  {
+    "android": {
+      "usesCleartextTraffic": true
+    }
+  }
+]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f1c985d8-d55c-473c-89ff-31b67f64fe0e"
+      }
     }
   }
 }
