@@ -1,5 +1,4 @@
 import * as Location from "expo-location";
-import { Color } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -12,15 +11,45 @@ import {
 } from "react-native";
 import { io, type Socket } from "socket.io-client";
 
+/* =========================================================
+   SERVER
+========================================================= */
+
 const API_URL =
   Platform.OS === "web"
     ? "http://localhost:5000"
-    : "http://10.153.217.207:5000";
+    : "http://10.158.189.207:5000";
 
-const SOCKET_URL =
-  Platform.OS === "web"
-    ? "http://localhost:5000"
-    : "http://10.153.217.207:5000";
+const SOCKET_URL = API_URL;
+
+/* =========================================================
+   MAPLIBRE OSM STYLE
+========================================================= */
+
+const MAP_STYLE = JSON.stringify({
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+});
+
+/* =========================================================
+   TYPES
+========================================================= */
 
 type TrackingState =
   | "idle"
@@ -29,32 +58,41 @@ type TrackingState =
   | "stopping"
   | "error";
 
+/* =========================================================
+   SCREEN
+========================================================= */
+
 export default function MapScreen() {
   const [location, setLocation] =
     useState<Location.LocationObject | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [permissionDenied, setPermissionDenied] =
+    useState(false);
 
   const [trackingState, setTrackingState] =
     useState<TrackingState>("idle");
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] =
+    useState("");
 
   const locationSubscription =
     useRef<Location.LocationSubscription | null>(null);
 
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef =
+    useRef<Socket | null>(null);
 
-  const userIdRef = useRef<string | null>(null);
+  const userIdRef =
+    useRef<string | null>(null);
 
-  const mapRef = useRef<any>(null);
+  const cameraRef =
+    useRef<any>(null);
 
-  /*
-   * ==========================================
-   * GET SAVED USER ID
-   * ==========================================
-   */
+  /* =========================================================
+     GET USER ID
+  ========================================================= */
 
   const getUserId = async (): Promise<string | null> => {
     try {
@@ -64,26 +102,24 @@ export default function MapScreen() {
 
       return await SecureStore.getItemAsync("userId");
     } catch (error) {
-      console.error("Unable to get user ID:", error);
+      console.error("USER ID ERROR:", error);
       return null;
     }
   };
 
-  /*
-   * ==========================================
-   * GET CURRENT REAL GPS LOCATION
-   * ==========================================
-   */
+  /* =========================================================
+     GET REAL GPS
+  ========================================================= */
 
   const getCurrentLocation = async () => {
     try {
       setLoading(true);
       setMessage("");
 
-      const { status } =
+      const permission =
         await Location.requestForegroundPermissionsAsync();
 
-      if (status !== "granted") {
+      if (permission.status !== "granted") {
         setPermissionDenied(true);
         setLoading(false);
         return;
@@ -91,25 +127,20 @@ export default function MapScreen() {
 
       setPermissionDenied(false);
 
-      const currentLocation =
+      const current =
         await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
 
-      setLocation(currentLocation);
+      setLocation(current);
 
       console.log(
-        "REAL GPS LOCATION:",
-        currentLocation.coords.latitude,
-        currentLocation.coords.longitude,
-        "accuracy:",
-        currentLocation.coords.accuracy
+        "REAL GPS:",
+        current.coords.latitude,
+        current.coords.longitude
       );
     } catch (error) {
-      console.error(
-        "Real GPS location error:",
-        error
-      );
+      console.error("GPS ERROR:", error);
 
       setMessage(
         "Unable to get your current GPS location."
@@ -119,53 +150,45 @@ export default function MapScreen() {
     }
   };
 
-  /*
-   * ==========================================
-   * MOVE MAP TO REAL LOCATION
-   * ==========================================
-   */
+  /* =========================================================
+     MOVE MAP
+  ========================================================= */
 
-  const moveMapToLocation = (
+  const moveMap = (
     currentLocation: Location.LocationObject
   ) => {
-    if (!mapRef.current) {
+    if (!cameraRef.current) {
       return;
     }
 
-    mapRef.current.animateToRegion(
-      {
-        latitude:
-          currentLocation.coords.latitude,
-
-        longitude:
+    try {
+      cameraRef.current.setCamera({
+        centerCoordinate: [
           currentLocation.coords.longitude,
-
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      },
-      500
-    );
+          currentLocation.coords.latitude,
+        ],
+        zoomLevel: 15,
+        animationDuration: 500,
+      });
+    } catch (error) {
+      console.log("CAMERA MOVE:", error);
+    }
   };
 
-  /*
-   * ==========================================
-   * STOP LOCAL GPS WATCHER
-   * ==========================================
-   */
+  /* =========================================================
+     STOP GPS WATCHER
+  ========================================================= */
 
-  const stopLocalLocationWatcher = () => {
+  const stopWatcher = () => {
     if (locationSubscription.current) {
       locationSubscription.current.remove();
-
       locationSubscription.current = null;
     }
   };
 
-  /*
-   * ==========================================
-   * INITIAL LOCATION
-   * ==========================================
-   */
+  /* =========================================================
+     INITIAL LOAD
+  ========================================================= */
 
   useEffect(() => {
     if (Platform.OS !== "web") {
@@ -175,7 +198,7 @@ export default function MapScreen() {
     }
 
     return () => {
-      stopLocalLocationWatcher();
+      stopWatcher();
 
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -184,25 +207,24 @@ export default function MapScreen() {
     };
   }, []);
 
-  /*
-   * ==========================================
-   * CONNECT SOCKET.IO
-   * ==========================================
-   */
+  /* =========================================================
+     SOCKET CONNECTION
+  ========================================================= */
 
   const connectSocket = async (
     userId: string
-  ) => {
-    return new Promise<Socket>((resolve, reject) => {
+  ): Promise<Socket> => {
+    return new Promise((resolve, reject) => {
       const socket = io(SOCKET_URL, {
         transports: ["websocket"],
+        reconnection: true,
       });
 
       socketRef.current = socket;
 
       socket.on("connect", () => {
         console.log(
-          "Socket connected:",
+          "SOCKET CONNECTED:",
           socket.id
         );
 
@@ -215,7 +237,7 @@ export default function MapScreen() {
 
       socket.on("connect_error", (error) => {
         console.error(
-          "Socket connection error:",
+          "SOCKET ERROR:",
           error
         );
 
@@ -224,20 +246,18 @@ export default function MapScreen() {
 
       socket.on("disconnect", (reason) => {
         console.log(
-          "Socket disconnected:",
+          "SOCKET DISCONNECTED:",
           reason
         );
       });
     });
   };
 
-  /*
-   * ==========================================
-   * SEND REAL LOCATION TO BACKEND
-   * ==========================================
-   */
+  /* =========================================================
+     SEND LOCATION TO BACKEND
+  ========================================================= */
 
-  const sendLocationToBackend = async (
+  const sendLocation = async (
     currentLocation: Location.LocationObject,
     userId: string
   ) => {
@@ -251,19 +271,13 @@ export default function MapScreen() {
       const accuracy =
         currentLocation.coords.accuracy ?? null;
 
-      /*
-       * REAL REST API UPDATE
-       */
-
       const response = await fetch(
         `${API_URL}/api/location/update`,
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             userId,
             latitude,
@@ -276,22 +290,13 @@ export default function MapScreen() {
       const data = await response.json();
 
       console.log(
-        "Location update response:",
+        "LOCATION API:",
         data
       );
 
       if (!response.ok) {
-        console.error(
-          "Location update failed:",
-          data
-        );
-
         return;
       }
-
-      /*
-       * REAL SOCKET.IO UPDATE
-       */
 
       if (
         socketRef.current &&
@@ -306,26 +311,18 @@ export default function MapScreen() {
             accuracy,
           }
         );
-
-        console.log(
-          "Live location emitted:",
-          latitude,
-          longitude
-        );
       }
     } catch (error) {
       console.error(
-        "Location update error:",
+        "SEND LOCATION ERROR:",
         error
       );
     }
   };
 
-  /*
-   * ==========================================
-   * START REAL SAFE TOUR
-   * ==========================================
-   */
+  /* =========================================================
+     START SAFE TOUR
+  ========================================================= */
 
   const startSafeTour = async () => {
     if (trackingState === "tracking") {
@@ -336,17 +333,13 @@ export default function MapScreen() {
       setTrackingState("starting");
       setMessage("");
 
-      /*
-       * Get REAL logged-in tourist ID.
-       */
-
       const userId = await getUserId();
 
       if (!userId) {
         setTrackingState("error");
 
         setMessage(
-          "Your login session was not found. Please login again."
+          "Login session not found. Please login again."
         );
 
         return;
@@ -354,24 +347,15 @@ export default function MapScreen() {
 
       userIdRef.current = userId;
 
-      console.log(
-        "Starting real tour for user:",
-        userId
-      );
-
-      /*
-       * Request REAL GPS permission.
-       */
-
-      const { status } =
+      const permission =
         await Location.requestForegroundPermissionsAsync();
 
-      if (status !== "granted") {
+      if (permission.status !== "granted") {
         setPermissionDenied(true);
         setTrackingState("idle");
 
         setMessage(
-          "Location permission is required to start Safe Tour."
+          "Location permission is required."
         );
 
         return;
@@ -379,130 +363,97 @@ export default function MapScreen() {
 
       setPermissionDenied(false);
 
-      /*
-       * Get the REAL GPS position immediately.
-       */
-
-      const currentLocation =
+      const current =
         await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
 
-      setLocation(currentLocation);
+      setLocation(current);
 
       console.log(
-        "START TOUR REAL GPS:",
-        currentLocation.coords.latitude,
-        currentLocation.coords.longitude
+        "START GPS:",
+        current.coords.latitude,
+        current.coords.longitude
       );
 
-      /*
-       * ======================================
-       * SAVE FIRST REAL LOCATION
-       * ======================================
-       */
+      /* SAVE START LOCATION */
 
-      const startResponse = await fetch(
+      const response = await fetch(
         `${API_URL}/api/location/start`,
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             userId,
-
             latitude:
-              currentLocation.coords.latitude,
-
+              current.coords.latitude,
             longitude:
-              currentLocation.coords.longitude,
-
+              current.coords.longitude,
             accuracy:
-              currentLocation.coords.accuracy ??
-              null,
+              current.coords.accuracy ?? null,
           }),
         }
       );
 
-      const startData =
-        await startResponse.json();
+      const data = await response.json();
 
       console.log(
-        "Start tour response:",
-        startData
+        "START RESPONSE:",
+        data
       );
 
-      if (!startResponse.ok) {
+      if (!response.ok) {
         throw new Error(
-          startData.message ||
+          data.message ||
             "Unable to start Safe Tour."
         );
       }
 
-      /*
-       * ======================================
-       * CONNECT REAL SOCKET.IO
-       * ======================================
-       */
+      /* SOCKET */
 
       try {
         await connectSocket(userId);
       } catch (socketError) {
         console.error(
-          "Socket connection failed:",
+          "SOCKET CONNECTION FAILED:",
           socketError
         );
-
-        /*
-         * REST tracking can still continue.
-         * Database will still receive GPS updates.
-         */
       }
 
-      /*
-       * ======================================
-       * START REAL CONTINUOUS GPS TRACKING
-       * ======================================
-       */
+      /* FIRST LOCATION */
 
-      stopLocalLocationWatcher();
+      await sendLocation(
+        current,
+        userId
+      );
+
+      /* GPS WATCHER */
+
+      stopWatcher();
 
       locationSubscription.current =
         await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.High,
-
-            /*
-             * Request GPS update roughly every 5 seconds.
-             */
-
+            accuracy:
+              Location.Accuracy.High,
             timeInterval: 5000,
-
-            /*
-             * Also update after approximately 5 metres.
-             */
-
             distanceInterval: 5,
           },
-
           async (newLocation) => {
             console.log(
-              "REAL GPS UPDATE:",
+              "LIVE GPS:",
               newLocation.coords.latitude,
-              newLocation.coords.longitude,
-              "accuracy:",
-              newLocation.coords.accuracy
+              newLocation.coords.longitude
             );
 
             setLocation(newLocation);
 
-            moveMapToLocation(newLocation);
+            moveMap(newLocation);
 
             if (userIdRef.current) {
-              await sendLocationToBackend(
+              await sendLocation(
                 newLocation,
                 userIdRef.current
               );
@@ -517,15 +468,15 @@ export default function MapScreen() {
       );
 
       console.log(
-        "REAL SAFE TOUR TRACKING STARTED"
+        "SAFE TOUR STARTED"
       );
     } catch (error) {
       console.error(
-        "Start Safe Tour error:",
+        "START TOUR ERROR:",
         error
       );
 
-      stopLocalLocationWatcher();
+      stopWatcher();
 
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -542,11 +493,9 @@ export default function MapScreen() {
     }
   };
 
-  /*
-   * ==========================================
-   * STOP REAL SAFE TOUR
-   * ==========================================
-   */
+  /* =========================================================
+     STOP SAFE TOUR
+  ========================================================= */
 
   const stopSafeTour = async () => {
     if (
@@ -559,48 +508,31 @@ export default function MapScreen() {
     try {
       setTrackingState("stopping");
 
-      const userId = userIdRef.current;
+      const userId =
+        userIdRef.current;
 
-      console.log(
-        "Stopping real tour for user:",
-        userId
-      );
-
-      /*
-       * Stop receiving GPS updates.
-       */
-
-      stopLocalLocationWatcher();
-
-      /*
-       * Tell backend to stop tracking.
-       */
+      stopWatcher();
 
       const response = await fetch(
         `${API_URL}/api/location/stop`,
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             userId,
           }),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       console.log(
-        "Stop tour response:",
+        "STOP RESPONSE:",
         data
       );
-
-      /*
-       * Tell Socket.IO/admin dashboard.
-       */
 
       if (
         socketRef.current &&
@@ -631,20 +563,15 @@ export default function MapScreen() {
       );
 
       console.log(
-        "REAL SAFE TOUR TRACKING STOPPED"
+        "SAFE TOUR STOPPED"
       );
     } catch (error) {
       console.error(
-        "Stop Safe Tour error:",
+        "STOP TOUR ERROR:",
         error
       );
 
-      /*
-       * Even if server request fails,
-       * stop local GPS watcher.
-       */
-
-      stopLocalLocationWatcher();
+      stopWatcher();
 
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -659,43 +586,28 @@ export default function MapScreen() {
     }
   };
 
-  /*
-   * ==========================================
-   * WEB
-   * ==========================================
-   */
+  /* =========================================================
+     WEB
+  ========================================================= */
 
   if (Platform.OS === "web") {
     return (
       <View style={styles.webContainer}>
-        <View style={styles.webIcon}>
-          <Text style={styles.webIconText}>
-            MAP
-          </Text>
-        </View>
-
         <Text style={styles.webTitle}>
           SafeTour Map
         </Text>
 
         <Text style={styles.webText}>
-          Real Google Maps and live GPS tracking
+          MapLibre and real GPS tracking
           are available in the Android app.
-        </Text>
-
-        <Text style={styles.webSmallText}>
-          Run SafeTour on the Android device to
-          use the phone's real GPS location.
         </Text>
       </View>
     );
   }
 
-  /*
-   * ==========================================
-   * LOADING
-   * ==========================================
-   */
+  /* =========================================================
+     LOADING
+  ========================================================= */
 
   if (loading) {
     return (
@@ -712,28 +624,20 @@ export default function MapScreen() {
     );
   }
 
-  /*
-   * ==========================================
-   * PERMISSION DENIED
-   * ==========================================
-   */
+  /* =========================================================
+     PERMISSION
+  ========================================================= */
 
   if (permissionDenied) {
     return (
       <View style={styles.center}>
-        <View style={styles.permissionIcon}>
-          <Text style={styles.permissionIconText}>
-            !
-          </Text>
-        </View>
-
         <Text style={styles.permissionTitle}>
           Location permission required
         </Text>
 
         <Text style={styles.permissionText}>
-          SafeTour needs your real device location
-          to provide live tourist safety tracking.
+          SafeTour needs your real device
+          location for live safety tracking.
         </Text>
 
         <Pressable
@@ -741,28 +645,16 @@ export default function MapScreen() {
           style={styles.button}
         >
           <Text style={styles.buttonText}>
-            Allow location
+            Allow Location
           </Text>
         </Pressable>
       </View>
     );
   }
 
-  /*
-   * ==========================================
-   * GOOGLE MAPS
-   * ==========================================
-   */
-
-  const Maps = require("react-native-maps");
-
-  const MapView = Maps.default;
-  const Marker = Maps.Marker;
-  const PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-
-  /*
-   * NEVER USE FAKE COORDINATES.
-   */
+  /* =========================================================
+     NO LOCATION
+  ========================================================= */
 
   if (!location) {
     return (
@@ -771,22 +663,36 @@ export default function MapScreen() {
           GPS location unavailable
         </Text>
 
-        <Text style={styles.permissionText}>
-          SafeTour could not obtain your real
-          device location.
-        </Text>
-
         <Pressable
           onPress={getCurrentLocation}
           style={styles.button}
         >
           <Text style={styles.buttonText}>
-            Try again
+            Try Again
           </Text>
         </Pressable>
       </View>
     );
   }
+
+  /* =========================================================
+     MAPLIBRE
+     
+     IMPORTANT:
+     Runtime require only happens on Android/iOS.
+  ========================================================= */
+
+  const MapLibre: any = require(
+    "@maplibre/maplibre-react-native"
+  );
+
+  const Map: any = MapLibre.Map;
+  const Camera: any = MapLibre.Camera;
+  const Marker: any = MapLibre.Marker;
+
+  /* =========================================================
+     STATES
+  ========================================================= */
 
   const isTracking =
     trackingState === "tracking";
@@ -795,15 +701,12 @@ export default function MapScreen() {
     trackingState === "starting" ||
     trackingState === "stopping";
 
-  /*
-   * ==========================================
-   * MAIN SCREEN
-   * ==========================================
-   */
+  /* =========================================================
+     MAIN UI
+  ========================================================= */
 
   return (
     <View style={styles.container}>
-
       {/* HEADER */}
 
       <View style={styles.header}>
@@ -842,7 +745,9 @@ export default function MapScreen() {
                 : styles.liveTextOff,
             ]}
           >
-            {isTracking ? "LIVE" : "OFF"}
+            {isTracking
+              ? "LIVE"
+              : "OFF"}
           </Text>
         </View>
       </View>
@@ -850,47 +755,58 @@ export default function MapScreen() {
       {/* MAP */}
 
       <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
+        <Map
           style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={{
-            latitude:
-              location.coords.latitude,
-
-            longitude:
-              location.coords.longitude,
-
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-          showsCompass={true}
-          showsBuildings={true}
-          zoomEnabled={true}
-          scrollEnabled={true}
-          rotateEnabled={true}
-          pitchEnabled={true}
+          mapStyle={MAP_STYLE}
         >
-          <Marker
-            coordinate={{
-              latitude:
-                location.coords.latitude,
-
-              longitude:
+          <Camera
+            ref={cameraRef}
+            initialViewState={{
+              center: [
                 location.coords.longitude,
+                location.coords.latitude,
+              ],
+              zoom: 15,
+              pitch: 0,
+              bearing: 0,
             }}
-            title="Your real location"
-            description={
-              isTracking
-                ? "SafeTour is sharing your live location"
-                : "SafeTour location tracking is OFF"
-            }
           />
-        </MapView>
 
-        {/* LOCATION STATUS CARD */}
+          {/* REAL GPS MARKER */}
+
+          <Marker
+            id="tourist-location"
+            lngLat={[
+              location.coords.longitude,
+              location.coords.latitude,
+            ]}
+            anchor="bottom"
+          >
+            <View style={styles.markerContainer}>
+              <View
+                style={[
+                  styles.marker,
+                  isTracking &&
+                    styles.markerActive,
+                ]}
+              >
+                <Text style={styles.markerText}>
+                  T
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.markerPointer,
+                  isTracking &&
+                    styles.markerPointerActive,
+                ]}
+              />
+            </View>
+          </Marker>
+        </Map>
+
+        {/* LOCATION CARD */}
 
         <View style={styles.locationCard}>
           <View
@@ -914,14 +830,14 @@ export default function MapScreen() {
           <View style={styles.locationContent}>
             <Text style={styles.locationTitle}>
               {isTracking
-                ? "Location sharing ON"
-                : "Location sharing OFF"}
+                ? "Live Location Active"
+                : "Location Sharing Off"}
             </Text>
 
             <Text style={styles.locationText}>
               {isTracking
-                ? "Your real GPS location is being sent to SafeTour."
-                : "Start Safe Tour to share your real GPS location."}
+                ? "Your real GPS location is being shared with SafeTour."
+                : "Start Safe Tour to share your location."}
             </Text>
           </View>
 
@@ -941,7 +857,9 @@ export default function MapScreen() {
                   : styles.statusTextOff,
               ]}
             >
-              {isTracking ? "ON" : "OFF"}
+              {isTracking
+                ? "ON"
+                : "OFF"}
             </Text>
           </View>
         </View>
@@ -957,27 +875,21 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      {/* START / STOP BUTTON */}
+      {/* BUTTON */}
 
       <View style={styles.actionContainer}>
-
         {isTracking ||
         trackingState === "stopping" ? (
           <Pressable
             onPress={stopSafeTour}
             disabled={isBusy}
-            style={({ pressed }) => [
+            style={[
               styles.stopButton,
-
-              pressed &&
-                !isBusy &&
-                styles.buttonPressed,
-
               isBusy &&
                 styles.buttonDisabled,
             ]}
           >
-            {trackingState === "stopping" ? (
+            {isBusy ? (
               <View style={styles.actionLoading}>
                 <ActivityIndicator
                   size="small"
@@ -990,9 +902,11 @@ export default function MapScreen() {
               </View>
             ) : (
               <>
-                <Text style={styles.stopIcon}>
-                  ■
-                </Text>
+                <View style={styles.buttonIcon}>
+                  <Text style={styles.buttonIconText}>
+                    ■
+                  </Text>
+                </View>
 
                 <View>
                   <Text style={styles.stopButtonText}>
@@ -1010,13 +924,8 @@ export default function MapScreen() {
           <Pressable
             onPress={startSafeTour}
             disabled={isBusy}
-            style={({ pressed }) => [
+            style={[
               styles.startButton,
-
-              pressed &&
-                !isBusy &&
-                styles.buttonPressed,
-
               isBusy &&
                 styles.buttonDisabled,
             ]}
@@ -1034,8 +943,8 @@ export default function MapScreen() {
               </View>
             ) : (
               <>
-                <View style={styles.startIcon}>
-                  <Text style={styles.startIconText}>
+                <View style={styles.buttonIcon}>
+                  <Text style={styles.buttonIconText}>
                     ●
                   </Text>
                 </View>
@@ -1053,15 +962,14 @@ export default function MapScreen() {
             )}
           </Pressable>
         )}
-
       </View>
     </View>
   );
 }
 
-/* ==================================================
+/* =========================================================
    STYLES
-================================================== */
+========================================================= */
 
 const styles = StyleSheet.create({
   container: {
@@ -1145,43 +1053,72 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  /* MARKER */
+
+  markerContainer: {
+    alignItems: "center",
+  },
+
+  marker: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#1F70B1",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 5,
+  },
+
+  markerActive: {
+    backgroundColor: "#20A05A",
+  },
+
+  markerText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  markerPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 12,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#1F70B1",
+    marginTop: -1,
+  },
+
+  markerPointerActive: {
+    borderTopColor: "#20A05A",
+  },
+
+  /* LOCATION CARD */
+
   locationCard: {
     position: "absolute",
     left: 16,
     right: 16,
     bottom: 18,
-
     backgroundColor: "#FFFFFF",
-
     borderRadius: 14,
-
     padding: 12,
-
     flexDirection: "row",
     alignItems: "center",
-
     borderWidth: 1,
     borderColor: "#E0E8ED",
-
     elevation: 5,
-
-    shadowColor: "#173646",
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
   },
 
   locationIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-
     backgroundColor: "#EEF2F4",
-
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1244,6 +1181,8 @@ const styles = StyleSheet.create({
     color: "#71808A",
   },
 
+  /* MESSAGE */
+
   messageBox: {
     marginHorizontal: 16,
     marginTop: 10,
@@ -1262,6 +1201,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  /* BUTTONS */
+
   actionContainer: {
     paddingHorizontal: 16,
     paddingTop: 10,
@@ -1273,47 +1214,23 @@ const styles = StyleSheet.create({
     minHeight: 58,
     borderRadius: 14,
     backgroundColor: "#1F70B1",
-
     flexDirection: "row",
     alignItems: "center",
-
     paddingHorizontal: 18,
-
     elevation: 4,
-
-    shadowColor: "#1F70B1",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
   },
 
   stopButton: {
     minHeight: 58,
     borderRadius: 14,
     backgroundColor: "#C84B4B",
-
     flexDirection: "row",
     alignItems: "center",
-
     paddingHorizontal: 18,
-
     elevation: 4,
-
-    shadowColor: "#C84B4B",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
   },
 
-  startIcon: {
+  buttonIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -1323,21 +1240,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
-  startIconText: {
+  buttonIconText: {
     color: "#FFFFFF",
     fontSize: 12,
-  },
-
-  stopIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    color: "#FFFFFF",
-    fontSize: 12,
-    textAlign: "center",
-    textAlignVertical: "center",
-    marginRight: 12,
   },
 
   startButtonText: {
@@ -1371,13 +1276,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  buttonPressed: {
-    opacity: 0.78,
-  },
-
   buttonDisabled: {
     opacity: 0.65,
   },
+
+  /* CENTER */
 
   center: {
     flex: 1,
@@ -1392,22 +1295,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 12,
     textAlign: "center",
-  },
-
-  permissionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#EAF3FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 15,
-  },
-
-  permissionIconText: {
-    color: "#1F70B1",
-    fontSize: 22,
-    fontWeight: "800",
   },
 
   permissionTitle: {
@@ -1439,28 +1326,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  /* WEB */
+
   webContainer: {
     flex: 1,
     backgroundColor: "#EEF4F8",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 35,
-  },
-
-  webIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: "#EAF3FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
-  },
-
-  webIconText: {
-    color: "#1F70B1",
-    fontSize: 12,
-    fontWeight: "800",
   },
 
   webTitle: {
@@ -1476,14 +1349,4 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: "center",
   },
-
-  webSmallText: {
-    color: "#8A98A1",
-    fontSize: 11,
-    lineHeight: 17,
-    textAlign: "center",
-    marginTop: 10,
-  },
 });
-
-

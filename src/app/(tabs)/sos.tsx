@@ -16,7 +16,7 @@ import {
 const API_URL =
   Platform.OS === "web"
     ? "http://localhost:5000"
-    : "http://10.153.217.207:5000";
+    : "http://10.158.189.207:5000";
 
 const getStorageItem = async (key: string) => {
   try {
@@ -43,24 +43,14 @@ export default function SOSScreen() {
     setSending(true);
 
     try {
-      /*
-       * ==========================================
-       * GET LOGGED-IN TOURIST
-       * ==========================================
-       */
-
+      // Get logged-in tourist
       const storedUserId = await getStorageItem("userId");
 
       if (!storedUserId) {
         throw new Error("Tourist session not found. Please login again.");
       }
 
-      /*
-       * ==========================================
-       * REQUEST REAL GPS PERMISSION
-       * ==========================================
-       */
-
+      // Request GPS permission
       const { status } =
         await Location.requestForegroundPermissionsAsync();
 
@@ -70,12 +60,7 @@ export default function SOSScreen() {
         );
       }
 
-      /*
-       * ==========================================
-       * GET REAL CURRENT GPS LOCATION
-       * ==========================================
-       */
-
+      // Get real current GPS location
       const currentLocation =
         await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
@@ -93,14 +78,7 @@ export default function SOSScreen() {
       console.log("Accuracy:", accuracy);
       console.log("=================================");
 
-      /*
-       * ==========================================
-       * SEND SOS TO BACKEND
-       * ==========================================
-       *
-       * The backend route will be created next.
-       */
-
+      // Send SOS to backend
       const response = await fetch(`${API_URL}/api/sos`, {
         method: "POST",
         headers: {
@@ -123,12 +101,6 @@ export default function SOSScreen() {
         );
       }
 
-      /*
-       * ==========================================
-       * SOS SUCCESS
-       * ==========================================
-       */
-
       console.log("SOS successfully sent:", data);
 
       setActivated(true);
@@ -145,58 +117,56 @@ export default function SOSScreen() {
     }
   };
 
-  /*
-   * ==========================================
-   * ACTIVATED SCREEN
-   * ==========================================
-   */
+  // -------------------------------------------------------
+  // SOS ACTIVATED SCREEN
+  // -------------------------------------------------------
 
   if (activated) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.activatedContainer}>
-          <View style={styles.successCircle}>
+        <View style={styles.successContainer}>
+          <View style={styles.successIconCircle}>
             <Text style={styles.successIcon}>✓</Text>
           </View>
 
-          <Text style={styles.activatedTitle}>
-            Emergency alert sent
+          <Text style={styles.successTitle}>
+            SOS Sent Successfully
           </Text>
 
-          <Text style={styles.activatedText}>
-            Your SOS has been sent to the SafeTour emergency
-            system along with your current location.
+          <Text style={styles.successSubtitle}>
+            Your emergency alert and current location
+            have been sent to TourSafe.
           </Text>
 
-          <View style={styles.statusBox}>
-            <View style={styles.statusDot} />
+          <View style={styles.activeCard}>
+            <View style={styles.activeDot} />
 
-            <View style={styles.statusContent}>
-              <Text style={styles.statusTitle}>
-                SOS Active
+            <View style={styles.activeContent}>
+              <Text style={styles.activeTitle}>
+                Emergency alert active
               </Text>
 
-              <Text style={styles.statusText}>
-                SafeTour has received your emergency request.
+              <Text style={styles.activeText}>
+                Help has been notified.
               </Text>
             </View>
           </View>
 
           <Pressable
-            onPress={() => setActivated(false)}
-            style={styles.cancelButton}
+            style={styles.primaryButton}
+            onPress={() => router.push("/(tabs)/home")}
           >
-            <Text style={styles.cancelText}>
-              Return to SOS
+            <Text style={styles.primaryButtonText}>
+              Return to Home
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => router.push("/(tabs)/home")}
-            style={styles.homeButton}
+            style={styles.secondaryButton}
+            onPress={() => setActivated(false)}
           >
-            <Text style={styles.homeText}>
-              Return to Home
+            <Text style={styles.secondaryButtonText}>
+              Back to SOS
             </Text>
           </Pressable>
         </View>
@@ -204,11 +174,9 @@ export default function SOSScreen() {
     );
   }
 
-  /*
-   * ==========================================
-   * MAIN SOS SCREEN
-   * ==========================================
-   */
+  // -------------------------------------------------------
+  // MAIN SOS SCREEN
+  // -------------------------------------------------------
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -217,33 +185,38 @@ export default function SOSScreen() {
 
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.push("/(tabs)/home")}
             style={styles.backButton}
+            onPress={() => router.push("/(tabs)/home")}
           >
-            <Text style={styles.backText}>‹</Text>
+            <Text style={styles.backIcon}>‹</Text>
           </Pressable>
 
           <Text style={styles.headerTitle}>
             Emergency SOS
           </Text>
 
-          <View style={styles.headerSpace} />
+          <View style={styles.headerRight} />
         </View>
 
-        {/* Main */}
+        {/* Main content */}
 
-        <View style={styles.main}>
+        <View style={styles.mainContent}>
+          <View style={styles.emergencyBadge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>
+              EMERGENCY ASSISTANCE
+            </Text>
+          </View>
+
           <Text style={styles.title}>
-            Need emergency help?
+            Need help?
           </Text>
 
           <Text style={styles.subtitle}>
-            Press and hold the button for 3 seconds
-            {"\n"}
-            to activate an emergency alert.
+            Hold the SOS button for 3 seconds
           </Text>
 
-          {/* SOS Button */}
+          {/* SOS BUTTON */}
 
           <Pressable
             onPressIn={() => {
@@ -272,42 +245,40 @@ export default function SOSScreen() {
                   color="#FFFFFF"
                 />
 
-                <Text style={styles.sendingText}>
+                <Text style={styles.sosButtonSmallText}>
                   SENDING
                 </Text>
               </>
             ) : (
               <>
-                <Text style={styles.sosText}>
+                <Text style={styles.sosButtonText}>
                   SOS
                 </Text>
 
-                <Text style={styles.holdText}>
+                <Text style={styles.sosButtonSmallText}>
                   HOLD
                 </Text>
               </>
             )}
           </Pressable>
 
-          <Text style={styles.instruction}>
+          <Text style={styles.holdInstruction}>
             {sending
-              ? "Getting your location and sending alert..."
+              ? "Getting your location..."
               : "Hold for 3 seconds"}
           </Text>
 
-          {/* Error */}
+          {/* ERROR */}
 
           {errorMessage ? (
-            <View style={styles.errorBox}>
-              <View style={styles.errorIcon}>
-                <Text style={styles.errorIconText}>
-                  !
-                </Text>
+            <View style={styles.errorCard}>
+              <View style={styles.errorIconCircle}>
+                <Text style={styles.errorIcon}>!</Text>
               </View>
 
               <View style={styles.errorContent}>
                 <Text style={styles.errorTitle}>
-                  SOS could not be sent
+                  SOS not sent
                 </Text>
 
                 <Text style={styles.errorText}>
@@ -317,35 +288,33 @@ export default function SOSScreen() {
             </View>
           ) : null}
 
-          {/* Information */}
+          {/* GPS STATUS */}
 
-          <View style={styles.infoBox}>
-            <View style={styles.infoIcon}>
-              <Text style={styles.infoIconText}>
-                i
+          <View style={styles.locationCard}>
+            <View style={styles.locationIconCircle}>
+              <Text style={styles.locationIcon}>
+                ⌖
               </Text>
             </View>
 
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>
-                What happens next?
+            <View style={styles.locationContent}>
+              <Text style={styles.locationTitle}>
+                Your location will be shared
               </Text>
 
-              <Text style={styles.infoText}>
-                SafeTour will send your emergency request
-                together with your current GPS location to
-                the emergency system.
+              <Text style={styles.locationText}>
+                TourSafe uses your current GPS position
+                when an SOS is sent.
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Bottom message */}
+        {/* Bottom emergency message */}
 
-        <View style={styles.bottom}>
-          <Text style={styles.emergencyText}>
-            If you are in immediate danger, contact your
-            local emergency services.
+        <View style={styles.bottomArea}>
+          <Text style={styles.bottomText}>
+            In immediate danger? Contact local emergency services.
           </Text>
         </View>
       </View>
@@ -353,10 +322,14 @@ export default function SOSScreen() {
   );
 }
 
+// -------------------------------------------------------
+// STYLES
+// -------------------------------------------------------
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#EEF4F8",
+    backgroundColor: "#F4F8FB",
   },
 
   container: {
@@ -367,183 +340,222 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
+  // HEADER
+
   header: {
-    height: 58,
+    height: 60,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   backButton: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     alignItems: "flex-start",
     justifyContent: "center",
   },
 
-  backText: {
-    color: "#40515D",
-    fontSize: 30,
-    lineHeight: 30,
+  backIcon: {
+    color: "#19384D",
+    fontSize: 34,
+    fontWeight: "300",
+    lineHeight: 36,
   },
 
   headerTitle: {
-    color: "#263C4A",
-    fontSize: 16,
-    fontWeight: "700",
+    color: "#17384D",
+    fontSize: 17,
+    fontWeight: "800",
   },
 
-  headerSpace: {
-    width: 40,
+  headerRight: {
+    width: 42,
   },
 
-  main: {
+  // MAIN
+
+  mainContent: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 20,
+  },
+
+  emergencyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF0F0",
+    borderWidth: 1,
+    borderColor: "#FFD4D4",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 16,
+  },
+
+  badgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#E52D32",
+    marginRight: 7,
+  },
+
+  badgeText: {
+    color: "#C52A2F",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.7,
   },
 
   title: {
-    color: "#1C303E",
-    fontSize: 22,
-    fontWeight: "800",
+    color: "#17384D",
+    fontSize: 28,
+    fontWeight: "900",
     textAlign: "center",
   },
 
   subtitle: {
-    color: "#788995",
-    fontSize: 12,
-    lineHeight: 18,
+    color: "#7A8B96",
+    fontSize: 13,
+    marginTop: 6,
     textAlign: "center",
-    maxWidth: 300,
-    marginTop: 8,
   },
 
+  // SOS BUTTON
+
   sosButton: {
-    width: 175,
-    height: 175,
-    borderRadius: 88,
-    backgroundColor: "#D92F2F",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: "#E52D32",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 32,
-    shadowColor: "#D92F2F",
+    marginTop: 30,
+
+    shadowColor: "#D72C31",
     shadowOffset: {
       width: 0,
-      height: 5,
+      height: 8,
     },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 8,
   },
 
   sosButtonHolding: {
-    transform: [{ scale: 0.94 }],
-    backgroundColor: "#C52626",
+    transform: [{ scale: 0.93 }],
+    backgroundColor: "#C92227",
   },
 
   sosButtonDisabled: {
-    opacity: 0.85,
+    opacity: 0.9,
   },
 
-  sosText: {
+  sosButtonText: {
     color: "#FFFFFF",
-    fontSize: 34,
+    fontSize: 42,
     fontWeight: "900",
     letterSpacing: 1,
   },
 
-  holdText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 3,
-    letterSpacing: 1,
-  },
-
-  sendingText: {
+  sosButtonSmallText: {
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "800",
-    marginTop: 8,
-    letterSpacing: 1,
+    letterSpacing: 1.4,
+    marginTop: 2,
   },
 
-  instruction: {
-    color: "#87959E",
+  holdInstruction: {
+    color: "#7E909B",
     fontSize: 11,
-    marginTop: 14,
-    textAlign: "center",
+    marginTop: 13,
   },
 
-  infoBox: {
+  // LOCATION CARD
+
+  locationCard: {
     width: "100%",
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E1E9EE",
-    padding: 15,
-    marginTop: 25,
+    padding: 14,
+    marginTop: 26,
+
+    shadowColor: "#17384D",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
 
-  infoIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EAF3FB",
+  locationIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EAF4FC",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
   },
 
-  infoIconText: {
-    color: "#2879C7",
-    fontSize: 14,
-    fontWeight: "800",
+  locationIcon: {
+    color: "#1976C8",
+    fontSize: 24,
+    fontWeight: "700",
   },
 
-  infoContent: {
+  locationContent: {
     flex: 1,
   },
 
-  infoTitle: {
-    color: "#304552",
+  locationTitle: {
+    color: "#294657",
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
-  infoText: {
-    color: "#82909A",
+  locationText: {
+    color: "#82919B",
     fontSize: 10,
-    lineHeight: 16,
+    lineHeight: 15,
     marginTop: 3,
   },
 
-  errorBox: {
+  // ERROR
+
+  errorCard: {
     width: "100%",
     flexDirection: "row",
-    backgroundColor: "#FFF5F5",
-    borderRadius: 14,
+    backgroundColor: "#FFF3F3",
     borderWidth: 1,
-    borderColor: "#F2CACA",
-    padding: 14,
-    marginTop: 18,
+    borderColor: "#F3CCCC",
+    borderRadius: 15,
+    padding: 13,
+    marginTop: 16,
   },
 
-  errorIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#FDE2E2",
+  errorIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFE0E0",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
 
-  errorIconText: {
-    color: "#D92F2F",
-    fontSize: 14,
+  errorIcon: {
+    color: "#D92D32",
+    fontSize: 16,
     fontWeight: "900",
   },
 
@@ -552,32 +564,35 @@ const styles = StyleSheet.create({
   },
 
   errorTitle: {
-    color: "#A52727",
+    color: "#A92329",
     fontSize: 12,
     fontWeight: "800",
   },
 
   errorText: {
-    color: "#8B6262",
+    color: "#8A6265",
     fontSize: 10,
-    lineHeight: 16,
-    marginTop: 3,
+    lineHeight: 15,
+    marginTop: 2,
   },
 
-  bottom: {
-    paddingBottom: 22,
+  // BOTTOM
+
+  bottomArea: {
+    paddingBottom: 18,
     alignItems: "center",
   },
 
-  emergencyText: {
-    color: "#8B989F",
-    fontSize: 10,
-    lineHeight: 15,
+  bottomText: {
+    color: "#91A0A8",
+    fontSize: 9,
     textAlign: "center",
-    maxWidth: 300,
+    lineHeight: 14,
   },
 
-  activatedContainer: {
+  // SUCCESS SCREEN
+
+  successContainer: {
     flex: 1,
     width: "100%",
     maxWidth: 430,
@@ -587,52 +602,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
   },
 
-  successCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#E5F5EC",
+  successIconCircle: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: "#E7F8EF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 22,
   },
 
   successIcon: {
-    color: "#20A05A",
-    fontSize: 32,
-    fontWeight: "800",
+    color: "#1FA463",
+    fontSize: 38,
+    fontWeight: "900",
   },
 
-  activatedTitle: {
-    color: "#1C303E",
-    fontSize: 21,
-    fontWeight: "800",
+  successTitle: {
+    color: "#17384D",
+    fontSize: 23,
+    fontWeight: "900",
     textAlign: "center",
   },
 
-  activatedText: {
-    color: "#788995",
+  successSubtitle: {
+    color: "#7A8B96",
     fontSize: 12,
-    lineHeight: 19,
+    lineHeight: 18,
     textAlign: "center",
-    maxWidth: 320,
-    marginTop: 10,
-    marginBottom: 20,
+    maxWidth: 310,
+    marginTop: 9,
   },
 
-  statusBox: {
+  activeCard: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0FAF4",
+    backgroundColor: "#F0FAF5",
     borderWidth: 1,
-    borderColor: "#CDEBD8",
-    borderRadius: 14,
-    padding: 14,
+    borderColor: "#CBEAD8",
+    borderRadius: 15,
+    padding: 15,
+    marginTop: 24,
     marginBottom: 25,
   },
 
-  statusDot: {
+  activeDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -640,52 +655,51 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
-  statusContent: {
+  activeContent: {
     flex: 1,
   },
 
-  statusTitle: {
+  activeTitle: {
     color: "#176B3A",
     fontSize: 12,
     fontWeight: "800",
   },
 
-  statusText: {
-    color: "#648273",
+  activeText: {
+    color: "#668374",
     fontSize: 10,
-    lineHeight: 15,
-    marginTop: 2,
+    marginTop: 3,
   },
 
-  cancelButton: {
+  primaryButton: {
     width: "100%",
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D8E2E8",
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "#1976C8",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
   },
 
-  cancelText: {
-    color: "#536673",
+  primaryButtonText: {
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "800",
   },
 
-  homeButton: {
+  secondaryButton: {
     width: "100%",
     height: 48,
-    borderRadius: 10,
-    backgroundColor: "#2879C7",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D7E2E8",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  homeText: {
-    color: "#FFFFFF",
+  secondaryButtonText: {
+    color: "#536673",
     fontSize: 13,
     fontWeight: "700",
   },

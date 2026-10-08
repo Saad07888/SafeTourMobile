@@ -15,7 +15,7 @@ import {
 const API_URL =
   Platform.OS === "web"
     ? "http://localhost:5000"
-    : "http://10.153.217.207:5000";
+    : "http://10.158.189.207:5000";
 
 type StoredUser = {
   id?: number;
@@ -1287,3 +1287,4 @@ const styles = StyleSheet.create({
     height: 8,
   },
 });
+

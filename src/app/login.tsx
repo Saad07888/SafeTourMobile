@@ -13,7 +13,11 @@ import {
   View,
 } from "react-native";
 
-const API_URL = "http://10.153.217.207:5000";
+const API_URL =
+  Platform.OS === "web"
+    ? "http://localhost:5000"
+    : "http://10.158.189.207:5000";
+
 /*
  * Store data correctly on both platforms.
  *
@@ -42,6 +46,54 @@ export default function LoginScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  /*
+   * TESTING USER LOGIN
+   *
+   * This bypasses the backend connection for demo/testing.
+   */
+  const handleTestingUser = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const testingUser = {
+        id: 5,
+        tourist_id: "TS-00005",
+        full_name: "RHK",
+        email: "RHK@gmail.com",
+        phone: "9879920490",
+      };
+
+      await saveStorageItem(
+        "authToken",
+        "testing-user-token"
+      );
+
+      await saveStorageItem(
+        "user",
+        JSON.stringify(testingUser)
+      );
+
+      await saveStorageItem(
+        "userId",
+        "5"
+      );
+
+      console.log("Testing User login successful");
+
+      router.replace("/(tabs)/home");
+    } catch (testingError) {
+      console.error(
+        "Testing User login error:",
+        testingError
+      );
+
+      setError("Unable to start testing session.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /*
    * REAL LOGIN
@@ -88,8 +140,8 @@ export default function LoginScreen() {
       }
 
       /*
-       * Make sure backend returned the real
-       * authentication data.
+       * Make sure backend returned
+       * the real authentication data.
        */
       if (!data.token || !data.user) {
         setError("Invalid server response.");
@@ -115,8 +167,8 @@ export default function LoginScreen() {
       /*
        * REAL USER ID
        *
-       * This will later be used for:
-       * GPS location tracking
+       * Used for GPS location tracking,
+       * SOS and other tourist features.
        */
       await saveStorageItem(
         "userId",
@@ -128,9 +180,6 @@ export default function LoginScreen() {
         data.user.id
       );
 
-      /*
-       * Go to the real logged-in home screen.
-       */
       router.replace("/(tabs)/home");
     } catch (loginError) {
       console.error(
@@ -138,43 +187,9 @@ export default function LoginScreen() {
         loginError
       );
 
-      /*
-       * This error is now specifically for a
-       * connection/request failure.
-       */
       setError(
         "Unable to connect to SafeTour server."
       );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // TEMPORARY TEST MODE
-  // Bypasses authentication so we can test real GPS tracking.
-  const handleTestMode = async () => {
-    try {
-      setError("");
-      setLoading(true);
-
-      await saveStorageItem("userId", "4");
-
-      await saveStorageItem(
-        "user",
-        JSON.stringify({
-          id: 4,
-          tourist_id: "TS-00004",
-          full_name: "Testing User",
-          email: "Testing@gmail.com",
-        })
-      );
-
-      console.log("TEST MODE: Using real database user ID 4");
-
-      router.replace("/(tabs)/home");
-    } catch (error) {
-      console.error("Test mode error:", error);
-      setError("Unable to start test mode.");
     } finally {
       setLoading(false);
     }
@@ -189,9 +204,8 @@ export default function LoginScreen() {
       >
         <View style={styles.container}>
 
-          {/* =====================================
-              TOP BAR
-          ====================================== */}
+          {/* TOP BAR */}
+
           <View style={styles.topBar}>
             <Pressable
               onPress={() => router.replace("/")}
@@ -216,9 +230,8 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* =====================================
-              BRAND
-          ====================================== */}
+          {/* BRAND */}
+
           <View style={styles.brandSection}>
             <View style={styles.logoOuter}>
               <View style={styles.logo}>
@@ -237,9 +250,8 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          {/* =====================================
-              LOGIN CARD
-          ====================================== */}
+          {/* LOGIN CARD */}
+
           <View style={styles.card}>
 
             <Text style={styles.title}>
@@ -251,6 +263,7 @@ export default function LoginScreen() {
             </Text>
 
             {/* ERROR */}
+
             {error ? (
               <View style={styles.errorBox}>
                 <View style={styles.errorIcon}>
@@ -265,9 +278,8 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
-            {/* =================================
-                EMAIL
-            ================================== */}
+            {/* EMAIL */}
+
             <View style={styles.field}>
               <Text style={styles.label}>
                 Email address
@@ -303,9 +315,8 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* =================================
-                PASSWORD
-            ================================== */}
+            {/* PASSWORD */}
+
             <View style={styles.field}>
               <View style={styles.passwordLabelRow}>
                 <Text style={styles.label}>
@@ -354,9 +365,8 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* =================================
-                OPTIONS
-            ================================== */}
+            {/* OPTIONS */}
+
             <View style={styles.optionsRow}>
               <Pressable
                 onPress={() =>
@@ -394,9 +404,8 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            {/* =================================
-                LOGIN BUTTON
-            ================================== */}
+            {/* LOGIN BUTTON */}
+
             <Pressable
               onPress={handleLogin}
               disabled={loading}
@@ -439,22 +448,26 @@ export default function LoginScreen() {
               )}
             </Pressable>
 
-            {/* =================================
-                TEMPORARY GPS TEST MODE
-            ================================== */}
+            {/* TESTING USER BUTTON */}
+
             <Pressable
-              onPress={handleTestMode}
+              onPress={handleTestingUser}
               disabled={loading}
-              style={styles.testModeButton}
+              style={({ pressed }) => [
+                styles.testingButton,
+                pressed &&
+                  styles.testingButtonPressed,
+                loading &&
+                  styles.testingButtonDisabled,
+              ]}
             >
-              <Text style={styles.testModeText}>
+              <Text style={styles.testingButtonText}>
                 Continue as Testing User
               </Text>
             </Pressable>
 
-            {/* =================================
-                DIVIDER
-            ================================== */}
+            {/* DIVIDER */}
+
             <View style={styles.dividerRow}>
               <View style={styles.divider} />
 
@@ -465,9 +478,8 @@ export default function LoginScreen() {
               <View style={styles.divider} />
             </View>
 
-            {/* =================================
-                REGISTER
-            ================================== */}
+            {/* REGISTER */}
+
             <View style={styles.registerSection}>
               <Text style={styles.registerText}>
                 Don't have a SafeTour account?
@@ -486,9 +498,8 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* =====================================
-              TRUST SECTION
-          ====================================== */}
+          {/* TRUST SECTION */}
+
           <View style={styles.trustSection}>
             <View style={styles.trustItem}>
               <View style={styles.trustIcon}>
@@ -510,9 +521,8 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* =====================================
-              FOOTER
-          ====================================== */}
+          {/* FOOTER */}
+
           <Text style={styles.footerText}>
             SafeTour • Your safety companion
           </Text>
@@ -528,24 +538,6 @@ export default function LoginScreen() {
 ================================================== */
 
 const styles = StyleSheet.create({
-  testModeButton: {
-    width: "100%",
-    height: 48,
-    borderRadius: 11,
-    backgroundColor: "#EAF4FA",
-    borderWidth: 1,
-    borderColor: "#9EC7E3",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 18,
-  },
-
-  testModeText: {
-    color: "#2178BC",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
   safeArea: {
     flex: 1,
     backgroundColor: "#F1F7FA",
@@ -564,9 +556,7 @@ const styles = StyleSheet.create({
     paddingBottom: 35,
   },
 
-  /* ================================================
-     TOP BAR
-  ================================================ */
+  /* TOP BAR */
 
   topBar: {
     width: "100%",
@@ -620,9 +610,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* ================================================
-     BRAND
-  ================================================ */
+  /* BRAND */
 
   brandSection: {
     alignItems: "center",
@@ -667,9 +655,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  /* ================================================
-     CARD
-  ================================================ */
+  /* LOGIN CARD */
 
   card: {
     width: "100%",
@@ -707,9 +693,7 @@ const styles = StyleSheet.create({
     marginBottom: 23,
   },
 
-  /* ================================================
-     ERROR
-  ================================================ */
+  /* ERROR */
 
   errorBox: {
     flexDirection: "row",
@@ -746,9 +730,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  /* ================================================
-     FIELDS
-  ================================================ */
+  /* FIELDS */
 
   field: {
     marginBottom: 19,
@@ -779,13 +761,10 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-
     backgroundColor: "#F8FBFD",
-
     borderWidth: 1,
     borderColor: "#D9E4EA",
     borderRadius: 11,
-
     paddingHorizontal: 12,
   },
 
@@ -818,9 +797,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
 
-  /* ================================================
-     OPTIONS
-  ================================================ */
+  /* OPTIONS */
 
   optionsRow: {
     width: "100%",
@@ -875,9 +852,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* ================================================
-     LOGIN BUTTON
-  ================================================ */
+  /* LOGIN BUTTON */
 
   loginButton: {
     width: "100%",
@@ -937,9 +912,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  /* ================================================
-     DIVIDER
-  ================================================ */
+  /* TESTING USER */
+
+  testingButton: {
+    width: "100%",
+    height: 46,
+    borderRadius: 11,
+    backgroundColor: "#EAF3F8",
+    borderWidth: 1,
+    borderColor: "#B9D4E3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+
+  testingButtonPressed: {
+    opacity: 0.7,
+  },
+
+  testingButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  testingButtonText: {
+    color: "#2178BC",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  /* DIVIDER */
 
   dividerRow: {
     width: "100%",
@@ -962,9 +963,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
 
-  /* ================================================
-     REGISTER
-  ================================================ */
+  /* REGISTER */
 
   registerSection: {
     alignItems: "center",
@@ -982,9 +981,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  /* ================================================
-     TRUST
-  ================================================ */
+  /* TRUST */
 
   trustSection: {
     width: "100%",
@@ -1030,9 +1027,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* ================================================
-     FOOTER
-  ================================================ */
+  /* FOOTER */
 
   footerText: {
     color: "#A0ADB5",

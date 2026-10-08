@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,7 +12,10 @@ import {
   View,
 } from "react-native";
 
-const API_URL = "http://10.153.217.207:5000";
+const API_URL =
+  Platform.OS === "web"
+    ? "http://localhost:5000"
+    : "http://10.158.189.207:5000";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -20,12 +24,13 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [passport, setPassport] = useState("");
+  const [destination, setDestination] = useState("");
+  const [exploring, setExploring] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -103,10 +108,6 @@ export default function RegisterScreen() {
         data.userId
       );
 
-      /*
-       * Registration is successful.
-       * The account now exists in MySQL.
-       */
       router.replace("/login");
     } catch (registerError) {
       console.error(
@@ -130,15 +131,25 @@ export default function RegisterScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.container}>
-          {/* Back */}
-          <Pressable
-            onPress={() => router.replace("/login")}
-            style={styles.backButton}
-            disabled={loading}
-          >
-            <Text style={styles.backIcon}>‹</Text>
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+
+          {/* Top Navigation */}
+          <View style={styles.topBar}>
+            <Pressable
+              onPress={() => router.replace("/login")}
+              style={styles.backButton}
+              disabled={loading}
+            >
+              <Text style={styles.backIcon}>‹</Text>
+              <Text style={styles.backText}>Back</Text>
+            </Pressable>
+
+            <View style={styles.safeBadge}>
+              <View style={styles.safeDot} />
+              <Text style={styles.safeBadgeText}>
+                Safe & Secure
+              </Text>
+            </View>
+          </View>
 
           {/* Header */}
           <View style={styles.header}>
@@ -149,28 +160,117 @@ export default function RegisterScreen() {
             <Text style={styles.brand}>SafeTour</Text>
 
             <Text style={styles.title}>
-              Create your account
+              Start your safe journey
             </Text>
 
             <Text style={styles.subtitle}>
-              Join SafeTour and stay connected while you travel.
+              Tell us a little about yourself and your trip.
             </Text>
+          </View>
+
+          {/* Travel Information */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon}>
+                <Text style={styles.sectionIconText}>✦</Text>
+              </View>
+
+              <View>
+                <Text style={styles.sectionTitle}>
+                  Your travel plan
+                </Text>
+
+                <Text style={styles.sectionSubtitle}>
+                  Help SafeTour understand your journey
+                </Text>
+              </View>
+            </View>
+
+            {/* Destination */}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Where are you going?
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                value={destination}
+                onChangeText={(value) => {
+                  setDestination(value);
+                  setError("");
+                }}
+                placeholder="e.g. Raigad, Alibag"
+                placeholderTextColor="#9AA6B2"
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+
+            {/* Exploring */}
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>
+                  What are you exploring?
+                </Text>
+
+                <Text style={styles.optional}>
+                  Optional
+                </Text>
+              </View>
+
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={exploring}
+                onChangeText={(value) => {
+                  setExploring(value);
+                  setError("");
+                }}
+                placeholder="e.g. Forts, beaches, trekking, sightseeing"
+                placeholderTextColor="#9AA6B2"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                editable={!loading}
+              />
+            </View>
           </View>
 
           {/* Error */}
           {error ? (
             <View style={styles.errorBox}>
+              <View style={styles.errorIcon}>
+                <Text style={styles.errorIconText}>!</Text>
+              </View>
+
               <Text style={styles.errorText}>
                 {error}
               </Text>
             </View>
           ) : null}
 
-          {/* Form */}
-          <View style={styles.form}>
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon}>
+                <Text style={styles.sectionIconText}>●</Text>
+              </View>
+
+              <View>
+                <Text style={styles.sectionTitle}>
+                  Personal information
+                </Text>
+
+                <Text style={styles.sectionSubtitle}>
+                  Used to identify and contact you
+                </Text>
+              </View>
+            </View>
+
             {/* Full Name */}
             <View style={styles.field}>
-              <Text style={styles.label}>Full name</Text>
+              <Text style={styles.label}>
+                Full name
+              </Text>
 
               <TextInput
                 style={styles.input}
@@ -243,17 +343,41 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={passport}
-                onChangeText={setPassport}
+                onChangeText={(value) => {
+                  setPassport(value);
+                  setError("");
+                }}
                 placeholder="Enter passport or ID number"
                 placeholderTextColor="#9AA6B2"
                 autoCapitalize="characters"
                 editable={!loading}
               />
             </View>
+          </View>
+
+          {/* Account Security */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIcon}>
+                <Text style={styles.sectionIconText}>✓</Text>
+              </View>
+
+              <View>
+                <Text style={styles.sectionTitle}>
+                  Account security
+                </Text>
+
+                <Text style={styles.sectionSubtitle}>
+                  Create a secure password
+                </Text>
+              </View>
+            </View>
 
             {/* Password */}
             <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>
+                Password
+              </Text>
 
               <View style={styles.passwordContainer}>
                 <TextInput
@@ -282,6 +406,10 @@ export default function RegisterScreen() {
                   </Text>
                 </Pressable>
               </View>
+
+              <Text style={styles.helperText}>
+                Use at least 6 characters.
+              </Text>
             </View>
 
             {/* Confirm Password */}
@@ -322,82 +450,90 @@ export default function RegisterScreen() {
                 </Pressable>
               </View>
             </View>
-
-            {/* Terms */}
-            <Pressable
-              onPress={() => setAgreed(!agreed)}
-              style={styles.termsRow}
-              disabled={loading}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  agreed && styles.checkboxChecked,
-                ]}
-              >
-                {agreed && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-              </View>
-
-              <Text style={styles.termsText}>
-                I agree to the{" "}
-                <Text style={styles.termsLink}>
-                  Terms of Service
-                </Text>{" "}
-                and{" "}
-                <Text style={styles.termsLink}>
-                  Privacy Policy
-                </Text>
-              </Text>
-            </Pressable>
-
-            {/* Create Account */}
-            <Pressable
-              onPress={handleRegister}
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.button,
-                pressed && styles.buttonPressed,
-                loading && styles.buttonDisabled,
-              ]}
-            >
-              {loading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator
-                    size="small"
-                    color="#FFFFFF"
-                  />
-
-                  <Text style={styles.buttonText}>
-                    Creating account...
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.buttonText}>
-                  Create account
-                </Text>
-              )}
-            </Pressable>
-
-            {/* Login */}
-            <View style={styles.loginRow}>
-              <Text style={styles.loginText}>
-                Already have an account?
-              </Text>
-
-              <Pressable
-                onPress={() => router.push("/login")}
-                disabled={loading}
-              >
-                <Text style={styles.loginLink}>
-                  Sign in
-                </Text>
-              </Pressable>
-            </View>
           </View>
 
-          {/* Security */}
+          {/* Terms */}
+          <Pressable
+            onPress={() => setAgreed(!agreed)}
+            style={styles.termsRow}
+            disabled={loading}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                agreed && styles.checkboxChecked,
+              ]}
+            >
+              {agreed && (
+                <Text style={styles.checkmark}>
+                  ✓
+                </Text>
+              )}
+            </View>
+
+            <Text style={styles.termsText}>
+              I agree to the{" "}
+              <Text style={styles.termsLink}>
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text style={styles.termsLink}>
+                Privacy Policy
+              </Text>
+            </Text>
+          </Pressable>
+
+          {/* Create Account */}
+          <Pressable
+            onPress={handleRegister}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+              loading && styles.buttonDisabled,
+            ]}
+          >
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.buttonText}>
+                  Creating account...
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>
+                  Create SafeTour account
+                </Text>
+
+                <Text style={styles.buttonArrow}>
+                  →
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
+          {/* Login */}
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>
+              Already have an account?
+            </Text>
+
+            <Pressable
+              onPress={() => router.push("/login")}
+              disabled={loading}
+            >
+              <Text style={styles.loginLink}>
+                Sign in
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Security Footer */}
           <View style={styles.securityRow}>
             <View style={styles.securityDot} />
 
@@ -405,6 +541,7 @@ export default function RegisterScreen() {
               Your information is securely handled.
             </Text>
           </View>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -414,31 +551,40 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#EEF4F8",
+    backgroundColor: "#F3F8FC",
   },
 
   scrollContent: {
     flexGrow: 1,
     paddingVertical: 18,
+    paddingBottom: 40,
   },
 
   container: {
     width: "100%",
-    maxWidth: 430,
+    maxWidth: 470,
     alignSelf: "center",
     paddingHorizontal: 20,
+  },
+
+  /* Top Bar */
+
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
 
   backButton: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     paddingVertical: 6,
   },
 
   backIcon: {
-    fontSize: 28,
-    lineHeight: 29,
+    fontSize: 27,
+    lineHeight: 28,
     color: "#40515D",
     marginRight: 5,
   },
@@ -449,73 +595,144 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  safeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E7F8EE",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+
+  safeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#20A05A",
+    marginRight: 6,
+  },
+
+  safeBadgeText: {
+    color: "#20784A",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  /* Header */
+
   header: {
     alignItems: "center",
-    marginTop: 18,
-    marginBottom: 20,
+    marginBottom: 25,
   },
 
   logo: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
+    width: 58,
+    height: 58,
+    borderRadius: 17,
     backgroundColor: "#2879C7",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#2879C7",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
   logoText: {
     color: "#FFFFFF",
-    fontSize: 26,
+    fontSize: 29,
     fontWeight: "800",
   },
 
   brand: {
     color: "#1F6EAE",
     fontSize: 17,
-    fontWeight: "700",
-    marginTop: 7,
+    fontWeight: "800",
+    marginTop: 8,
   },
 
   title: {
-    color: "#18232D",
-    fontSize: 25,
+    color: "#182B38",
+    fontSize: 27,
     fontWeight: "800",
-    marginTop: 17,
+    marginTop: 13,
     textAlign: "center",
   },
 
   subtitle: {
-    color: "#7A8791",
+    color: "#7A8994",
     fontSize: 13,
     lineHeight: 19,
     textAlign: "center",
     marginTop: 6,
-    maxWidth: 340,
+    maxWidth: 350,
   },
 
-  errorBox: {
-    backgroundColor: "#FDECEC",
+  /* Sections */
+
+  section: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#F4CACA",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: "#E1EAF0",
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: "#173B55",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: "#EAF4FC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+
+  sectionIconText: {
+    color: "#2879C7",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  sectionTitle: {
+    color: "#203440",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  sectionSubtitle: {
+    color: "#8998A3",
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  /* Fields */
+
+  field: {
     marginBottom: 16,
   },
 
-  errorText: {
-    color: "#C43D3D",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-
-  form: {
-    width: "100%",
-  },
-
-  field: {
-    marginBottom: 15,
+  fieldLast: {
+    marginBottom: 0,
   },
 
   labelRow: {
@@ -525,9 +742,9 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: "#34434E",
+    color: "#344650",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
     marginBottom: 7,
   },
 
@@ -538,22 +755,28 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 49,
-    backgroundColor: "#FFFFFF",
+    height: 50,
+    backgroundColor: "#F8FBFD",
     borderWidth: 1,
-    borderColor: "#E0E7EC",
-    borderRadius: 10,
+    borderColor: "#DDE7ED",
+    borderRadius: 11,
     paddingHorizontal: 14,
     color: "#263640",
     fontSize: 14,
   },
 
+  textArea: {
+    height: 82,
+    paddingTop: 13,
+    paddingBottom: 13,
+  },
+
   passwordContainer: {
-    height: 49,
-    backgroundColor: "#FFFFFF",
+    height: 50,
+    backgroundColor: "#F8FBFD",
     borderWidth: 1,
-    borderColor: "#E0E7EC",
-    borderRadius: 10,
+    borderColor: "#DDE7ED",
+    borderRadius: 11,
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 14,
@@ -572,23 +795,69 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  helperText: {
+    color: "#9AA6B2",
+    fontSize: 10,
+    marginTop: 6,
+  },
+
+  /* Error */
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF1F1",
+    borderWidth: 1,
+    borderColor: "#F4CCCC",
+    borderRadius: 11,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 16,
+  },
+
+  errorIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#D94B4B",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 9,
+  },
+
+  errorIconText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  errorText: {
+    flex: 1,
+    color: "#C43D3D",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  /* Terms */
+
   termsRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 2,
+    marginTop: 1,
     marginBottom: 19,
+    paddingHorizontal: 2,
   },
 
   checkbox: {
-    width: 17,
-    height: 17,
-    borderRadius: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: "#C8D3DA",
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
+    marginRight: 9,
     marginTop: 1,
   },
 
@@ -612,15 +881,25 @@ const styles = StyleSheet.create({
 
   termsLink: {
     color: "#2879C7",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
+  /* Button */
+
   button: {
-    height: 50,
-    borderRadius: 11,
-    backgroundColor: "#3182ED",
+    height: 53,
+    borderRadius: 13,
+    backgroundColor: "#287FC9",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#287FC9",
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 9,
+    elevation: 4,
   },
 
   buttonPressed: {
@@ -629,6 +908,12 @@ const styles = StyleSheet.create({
 
   buttonDisabled: {
     opacity: 0.65,
+  },
+
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingRow: {
@@ -640,8 +925,17 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "800",
   },
+
+  buttonArrow: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    marginLeft: 10,
+  },
+
+  /* Login */
 
   loginRow: {
     flexDirection: "row",
@@ -658,15 +952,17 @@ const styles = StyleSheet.create({
   loginLink: {
     color: "#2879C7",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     marginLeft: 5,
   },
+
+  /* Footer */
 
   securityRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 17,
+    marginTop: 18,
   },
 
   securityDot: {
